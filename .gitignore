@@ -1,3 +1,9 @@
 target/
+build/
+
 .idea/
 *.iml
+*.iws
+*.ipr
+
+*.log
