@@ -1,0 +1,2 @@
+org.springframework.boot.autoconfigure.EnableAutoConfiguration=\
+  com.ecommerce4j.config.Ecommerce4jAutoConfiguration
