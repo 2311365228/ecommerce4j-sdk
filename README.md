@@ -1,19 +1,24 @@
 # Ecommerce4j SDK 
 
-![Java](https://img.shields.io/badge/Java-17%2B-blue) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.6-green) ![License](https://img.shields.io/badge/License-MIT-yellow)
+![Java](https://img.shields.io/badge/Java-17%2B-blue) ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.2.6-green) ![License](https://img.shields.io/badge/License-MIT-yellow) ![Status](https://img.shields.io/badge/Status-Educational%20Only-red)
 
-**Ecommerce4j SDK** 是一个轻量级、统一的海外电商平台集成 SDK。旨在通过一套标准化的接口（Unified Interface），屏蔽不同电商平台（TikTok Shop, Mercado Libre 等）的 API 差异，帮助开发者快速构建跨境电商 ERP 或中间件系统。
+> 🚨 **免责声明 / DISCLAIMER**
+>
+> **本项目仅供学习与架构参考，严禁直接引入生产环境！**
+> **This project is for educational purposes only. DO NOT use in production.**
+>
+> 本项目是作者基于电商ERP业务场景构建的架构验证（PoC），**不具备**通用性与长期维护性。由于跨境电商平台 API 变动频繁，直接使用本 SDK 极大概率会导致生产事故。作者不对任何因使用本项目造成的损失（包括但不限于订单丢失、资金损失）承担责任。
 
-> 💡 **项目说明 / Note**
-> 
-> 本项目沉淀了作者在跨境电商业务中的架构思考，重点在于**统一领域模型的设计**与**多平台适配器模式的实践**。
-> 
-> - **定位**：作为轻量级中间件架构的 Concept Proof (PoC) 实现。
-> - **现状**：核心链路已调通，具备灵活扩展新平台的能力。
-> - **计划**：目前测试用例尚需完善（官方文档存在多数特殊情况未列出，需要实际接入测试），后续计划不断提升覆盖率，以满足生产级交付标准。
-> 
-> *仅供学习参考，生产环境集成建议基于此架构进行二次开发与验证。*
+**Ecommerce4j SDK** 是一个轻量级、统一的海外电商平台集成 SDK。旨在通过一套标准化的接口（Unified Interface），展示如何屏蔽不同电商平台（TikTok Shop, Mercado Libre 等）的 API 差异。
 
+> 💡 **项目核心价值**
+>
+> 本项目适合作为 **Reference Architecture (参考架构)**，帮助开发者理解：
+> * 如何设计统一的领域模型 (Unified Domain Model)
+> * 如何使用适配器模式 (Adapter Pattern) 处理异构系统
+> * 如何处理复杂的业务场景（如 Meli 合单、OAuth2 自动刷新）
+>
+> *建议阅读源码理解设计思路后，根据贵公司的实际业务需求进行二次开发。*
 ---
 
 ## ✨ 核心特性
@@ -79,23 +84,68 @@ SDK 会自动注入 `PlatformFactory`，你可以通过它获取任意平台的�
 private PlatformFactory platformFactory;
 
 public void syncOrders() {
-    // 1. 获取 TikTok 的订单服务
-    EcommOrderService tiktokOrderService = platformFactory.getOrderService(Platform.TIKTOK_SHOP);
+  // 1. 构建AuthContext统一认证上下文
+  Platform platform = Platform.TIKTOK_SHOP;
+  AuthContext authContext = this.getAuthContextForSeller("sellerId", platform);
 
-    // 2. 构建统一查询参数
-    OrderQuery query = new OrderQuery();
-    query.setPageSize(20);
-    query.setCreateTimeFrom(Instant.now().minus(7, ChronoUnit.DAYS));
+  // 2. 准备订单查询参数 (OrderQuery)
+  // 我们想要获取过去30天内创建的、状态为“待发货”的订单。
+  OrderQuery query = OrderQuery.builder()
+          .createTimeFrom(Instant.now().minus(30, ChronoUnit.DAYS))
+          .createTimeTo(Instant.now())
+          .pageSize(1)
+          .build();
+    
+  // 获取店铺授权url
+  String uuid = UUID.randomUUID().toString(true);
+  EcommAuthorizationService authorizationService = platformFactory.getAuthorizationService(platform);
+  String authorizationUrl = authorizationService.getAuthorizationUrl(uuid);  
+ 
+  // 获取店铺信息  
+  UnifiedShopInfo shopInfo = authorizationService.getShopInfo(authContext);
 
-    // 3. 获取标准化的订单列表
-    AuthContext auth = new AuthContext("ACCESS_TOKEN", ...);
-    PaginatedResult<UnifiedOrder> result = tiktokOrderService.getOrders(auth, query);
+  // 调用获取订单列表
+  EcommOrderService orderService = platformFactory.getOrderService(platform);  
+  PaginatedResult<UnifiedOrder> orders = orderService.getOrders(authContext, query);
+  List<UnifiedOrder> data = orders.getData();
+  log.info("成功从平台 [{}] 获取到 {} 条订单。", platform.getDescription(), data.size());
 
-    // 4. 处理订单（无需关心是 TikTok 还是 Mercado）
-    result.getData().forEach(order -> {
-        System.out.println("订单号: " + order.getOrderId());
-        System.out.println("金额: " + order.getTotalAmount());
-    });
+  // 获取物流面单
+  EcommFulfillmentService fulfillmentService = platformFactory.getFulfillmentService(platform);  
+  FulfillmentAction fulfillmentAction = fulfillmentService.prepareFulfillment(authContext, "shipmentId");
+
+  // 获取物流信息
+  EcommLogisticsService logisticsService = platformFactory.getLogisticsService(platform);
+  UnifiedShipment trackingEvents = logisticsService.getTrackingEvents(authContext, "shipmentId");
+}
+
+/**
+ * 从您的数据库或缓存中获取卖家的授权凭证。
+ *
+ * @param sellerId 卖家ID
+ * @param platform 平台
+ * @return 持久化的 AuthContext 对象
+ */
+private AuthContext getAuthContextForSeller(String sellerId, Platform platform) {
+  // log.info("【模拟】正在从数据库为卖家 {} 查找平台 {} 的授权信息...", sellerId, platform.name());
+  // 在这里，您应该执行类似 "SELECT * FROM auth_tokens WHERE seller_id = ? AND platform = ?" 的查询
+  if (Platform.TIKTOK_SHOP.equals(platform)) {
+    return AuthContext.builder()
+            .platform(Platform.TIKTOK_SHOP)
+            .accessToken("accessToken") // 从数据库读取
+            .refreshToken("refreshToken") // 从数据库读取
+            .accessTokenExpiresAt(Instant.now().plus(1, ChronoUnit.HOURS)) // 从数据库读取
+            .build();
+  } else if (Platform.MERCADO_LIBRE.equals(platform)) {
+    return AuthContext.builder()
+            .platform(Platform.MERCADO_LIBRE)
+            .accessToken("accessToken") // 从数据库读取
+            .refreshToken("refreshToken") // 从数据库读取
+            .accessTokenExpiresAt(Instant.now().plus(6, ChronoUnit.HOURS)) // 从数据库读取
+            .sellerId("sellerId") // MercadoLibre 使用 sellerId
+            .build();
+  }
+  return null;
 }
 ```
 
@@ -128,8 +178,12 @@ public void syncOrders() {
 - **`AbstractAdapter`**: 封装 OkHttp 客户端、JSON 序列化、签名算法等通用逻辑。
 - **`TikTokShopAdapter` / `MercadoLibreAdapter`**: 实现具体平台的 API 调用和数据映射。
 
-## 🤝 贡献与反馈
+## 🤝 贡献与反馈 (Contribution)
 
-这是一个开源的“玩具”项目，如果你在使用过程中发现了 Bug，或者是想添加新的平台支持，非常欢迎 Submit Pull Request！
+**本项目旨在探索跨境电商集成的最佳架构实践。**
 
-让我们一起把这个轮子造得更圆！🚀
+由于各电商平台的 API 迭代频繁，本 SDK 更侧重于**通用适配逻辑**与**领域模型**的稳定性，而非追求对特定 API 版本的实时覆盖。
+
+- **二次开发**：项目已预留了扩展接口，建议您 Fork 本仓库，基于此架构快速对接您所需的特定业务平台。
+- **共建生态**：如果您修复了核心逻辑 Bug 或完成了新平台的适配，**热烈欢迎提交 PR**！
+- **支持作者**：如果这个项目的**设计思路**为您带来了灵感，请不吝点个 **⭐️ Star** 支持一下！您的鼓励是我持续分享的动力。
