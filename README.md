@@ -83,18 +83,10 @@ SDK 会自动注入 `PlatformFactory`，你可以通过它获取任意平台的�
 @Autowired
 private PlatformFactory platformFactory;
 
-public void syncOrders() {
-  // 1. 构建AuthContext统一认证上下文
+public void test() {
+  // 构建AuthContext统一认证上下文
   Platform platform = Platform.TIKTOK_SHOP;
   AuthContext authContext = this.getAuthContextForSeller("sellerId", platform);
-
-  // 2. 准备订单查询参数 (OrderQuery)
-  // 我们想要获取过去30天内创建的、状态为“待发货”的订单。
-  OrderQuery query = OrderQuery.builder()
-          .createTimeFrom(Instant.now().minus(30, ChronoUnit.DAYS))
-          .createTimeTo(Instant.now())
-          .pageSize(1)
-          .build();
     
   // 获取店铺授权url
   String uuid = UUID.randomUUID().toString(true);
@@ -105,6 +97,13 @@ public void syncOrders() {
   UnifiedShopInfo shopInfo = authorizationService.getShopInfo(authContext);
 
   // 调用获取订单列表
+  // 准备订单查询参数 (OrderQuery)
+  // 我们想要获取过去30天内创建的、状态为“待发货”的订单。
+  OrderQuery query = OrderQuery.builder()
+          .createTimeFrom(Instant.now().minus(30, ChronoUnit.DAYS))
+          .createTimeTo(Instant.now())
+          .pageSize(1)
+          .build();
   EcommOrderService orderService = platformFactory.getOrderService(platform);  
   PaginatedResult<UnifiedOrder> orders = orderService.getOrders(authContext, query);
   List<UnifiedOrder> data = orders.getData();
