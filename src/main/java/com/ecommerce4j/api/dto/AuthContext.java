@@ -58,4 +58,19 @@ public class AuthContext {
      * 卖家ID (如 Mercado Libre 的 seller_id)
      */
     private String sellerId;
+
+    /**
+     * SHEIN 等签名型平台返回的 OpenKeyId。
+     */
+    private String openKeyId;
+
+    /**
+     * SHEIN 等签名型平台返回的解密后 SecretKey。
+     */
+    private String secretKey;
+
+    /**
+     * 平台侧商家主体ID。
+     */
+    private String merchantId;
 }

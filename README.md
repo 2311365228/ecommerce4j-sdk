@@ -29,6 +29,7 @@
 - **目前支持平台**：
   - [x] **TikTok Shop** (Order, Fulfillment, Logistics, Auth)
   - [x] **Mercado Libre** (Order, Fulfillment, Logistics, Auth)
+  - [x] **SHEIN MX Self-operated** (Order, Fulfillment, Logistics, Auth)
 
 ## 🧩 功能模块 (Core Capabilities)
 
@@ -74,6 +75,13 @@ mercadolibre:
   app_id: "YOUR_ML_APP_ID"
   secret_key: "YOUR_ML_SECRET_KEY"
   auth_url: "https://auth.mercadolibre.com/authorization"
+
+shein:
+  app_id: "YOUR_SHEIN_APP_ID"
+  app_secret: "YOUR_SHEIN_APP_SECRET"
+  auth_url: "https://open.sheincorp.com"
+  redirect_uri: "YOUR_CALLBACK_URL"
+  api_base_url: "https://openapi.sheincorp.com"
 ```
 
 ### 3. 使用 SDK
