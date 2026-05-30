@@ -11,6 +11,8 @@ public enum Platform {
 
     MERCADO_LIBRE("Mercado Libre"),
 
+    LAZADA("Lazada"),
+
     /**
      * 希音墨西哥自运营
      */

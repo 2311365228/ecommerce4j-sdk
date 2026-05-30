@@ -9,7 +9,7 @@
 >
 > 本项目是作者基于电商ERP业务场景构建的架构验证（PoC），**不具备**通用性与长期维护性。由于跨境电商平台 API 变动频繁，直接使用本 SDK 极大概率会导致生产事故。作者不对任何因使用本项目造成的损失（包括但不限于订单丢失、资金损失）承担责任。
 
-**Ecommerce4j SDK** 是一个轻量级、统一的海外电商平台集成 SDK。旨在通过一套标准化的接口（Unified Interface），展示如何屏蔽不同电商平台（TikTok Shop, Mercado Libre 等）的 API 差异。
+**Ecommerce4j SDK** 是一个轻量级、统一的海外电商平台集成 SDK。旨在通过一套标准化的接口（Unified Interface），展示如何屏蔽不同电商平台（TikTok Shop, Mercado Libre, Lazada 等）的 API 差异。
 
 > 💡 **项目核心价值**
 >
@@ -29,6 +29,7 @@
 - **目前支持平台**：
   - [x] **TikTok Shop** (Order, Fulfillment, Logistics, Auth)
   - [x] **Mercado Libre** (Order, Fulfillment, Logistics, Auth)
+  - [x] **Lazada** (Order, Fulfillment, Logistics, Auth)
   - [x] **SHEIN MX Self-operated** (Order, Fulfillment, Logistics, Auth)
 
 ## 🧩 功能模块 (Core Capabilities)
@@ -49,6 +50,7 @@
 - **面单获取**：支持下载 PDF 格式的物流面单，自动处理 Base64 解码。
 - **发货回填**：支持卖家自发货模式下回填 Tracking Number。
 - **轨迹追踪**：统一的轨迹节点查询，自动解析时区和时间格式。
+- **Lazada 显式履约链路**：支持 `getShipmentProviders -> packOrderItems -> getPackageDocument -> readyToShip` 的分步调用。
 
 ## 🛠️ 快速开始
 
@@ -75,6 +77,13 @@ mercadolibre:
   app_id: "YOUR_ML_APP_ID"
   secret_key: "YOUR_ML_SECRET_KEY"
   auth_url: "https://auth.mercadolibre.com/authorization"
+
+lazada:
+  app_key: "YOUR_LAZADA_APP_KEY"
+  app_secret: "YOUR_LAZADA_APP_SECRET"
+  redirect_uri: "YOUR_CALLBACK_URL"
+  authorize_url: "https://auth.lazada.com/oauth/authorize"
+  auth_base_url: "https://auth.lazada.com/rest"
 
 shein:
   app_id: "YOUR_SHEIN_APP_ID"
@@ -119,11 +128,11 @@ public void test() {
 
   // 获取物流面单
   EcommFulfillmentService fulfillmentService = platformFactory.getFulfillmentService(platform);  
-  FulfillmentAction fulfillmentAction = fulfillmentService.prepareFulfillment(authContext, "shipmentId");
+  FulfillmentAction fulfillmentAction = fulfillmentService.prepareFulfillment(authContext, "orderId", false);
 
   // 获取物流信息
   EcommLogisticsService logisticsService = platformFactory.getLogisticsService(platform);
-  UnifiedShipment trackingEvents = logisticsService.getTrackingEvents(authContext, "shipmentId");
+  UnifiedShipment trackingEvents = logisticsService.getTrackingEvents(authContext, "orderId");
 }
 
 /**
@@ -134,8 +143,6 @@ public void test() {
  * @return 持久化的 AuthContext 对象
  */
 private AuthContext getAuthContextForSeller(String sellerId, Platform platform) {
-  // log.info("【模拟】正在从数据库为卖家 {} 查找平台 {} 的授权信息...", sellerId, platform.name());
-  // 在这里，您应该执行类似 "SELECT * FROM auth_tokens WHERE seller_id = ? AND platform = ?" 的查询
   if (Platform.TIKTOK_SHOP.equals(platform)) {
     return AuthContext.builder()
             .platform(Platform.TIKTOK_SHOP)
@@ -151,9 +158,46 @@ private AuthContext getAuthContextForSeller(String sellerId, Platform platform) 
             .accessTokenExpiresAt(Instant.now().plus(6, ChronoUnit.HOURS)) // 从数据库读取
             .sellerId("sellerId") // MercadoLibre 使用 sellerId
             .build();
+  } else if (Platform.LAZADA.equals(platform)) {
+    return AuthContext.builder()
+            .platform(Platform.LAZADA)
+            .accessToken("accessToken") // 从数据库读取
+            .refreshToken("refreshToken") // 从数据库读取
+            .siteCountry("sg") // Lazada 一授权一站点
+            .accountId("accountId") // Lazada 授权账号ID
+            .accountName("accountName") // Lazada 授权账号名
+            .build();
   }
   return null;
 }
+```
+
+### Lazada 履约示例
+
+Lazada 首版接入推荐显式履约，不建议把完整链路都压进 `prepareFulfillment`：
+
+```java
+Platform platform = Platform.LAZADA;
+EcommFulfillmentService fulfillmentService = platformFactory.getFulfillmentService(platform);
+
+List<FulfillmentProviderOption> providers = fulfillmentService.getShipmentProviders(
+        authContext,
+        "123",
+        List.of("1001"));
+
+FulfillmentProviderOption selectedProvider = providers.get(0);
+FulfillmentPackRequest packRequest = FulfillmentPackRequest.builder()
+        .orderId("123")
+        .orderLineIds(List.of("1001"))
+        .deliveryType("dropship")
+        .shippingAllocateType(selectedProvider.getShippingAllocateType())
+        .shipmentProviderCode(selectedProvider.getShipmentProviderCode())
+        .build();
+
+List<FulfillmentPackageResult> packedPackages = fulfillmentService.packOrderItems(authContext, packRequest);
+String packageId = packedPackages.get(0).getPackageId();
+FulfillmentDocument awb = fulfillmentService.getPackageDocument(authContext, packageId);
+fulfillmentService.readyToShip(authContext, packageId);
 ```
 
 ## � 核心亮点 (Key Features)

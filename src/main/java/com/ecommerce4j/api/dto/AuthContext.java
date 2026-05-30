@@ -73,4 +73,19 @@ public class AuthContext {
      * 平台侧商家主体ID。
      */
     private String merchantId;
+
+    /**
+     * Lazada 站点国家编码，例如 sg / my / ph。
+     */
+    private String siteCountry;
+
+    /**
+     * Lazada 授权账号ID。
+     */
+    private String accountId;
+
+    /**
+     * Lazada 授权账号名。
+     */
+    private String accountName;
 }

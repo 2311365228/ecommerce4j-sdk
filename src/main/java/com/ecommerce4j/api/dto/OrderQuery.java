@@ -21,6 +21,14 @@ public class OrderQuery {
      */
     private Instant createTimeTo;
     /**
+     * 订单更新时间的起始点 (包含)
+     */
+    private Instant updateTimeFrom;
+    /**
+     * 订单更新时间的结束点 (不包含)
+     */
+    private Instant updateTimeTo;
+    /**
      * 按平台特定的订单状态进行过滤
      */
     private String orderStatus;

@@ -1,8 +1,15 @@
 package com.ecommerce4j.api;
 
 import com.ecommerce4j.api.dto.AuthContext;
+import com.ecommerce4j.api.dto.FulfillmentDocument;
 import com.ecommerce4j.api.dto.FulfillmentAction;
+import com.ecommerce4j.api.dto.FulfillmentPackRequest;
+import com.ecommerce4j.api.dto.FulfillmentPackageResult;
+import com.ecommerce4j.api.dto.FulfillmentProviderOption;
 import com.ecommerce4j.api.dto.TrackingInfo;
+import com.ecommerce4j.api.exception.EcommIntegrationException;
+
+import java.util.List;
 
 /**
  * 统一履约服务接口
@@ -32,4 +39,48 @@ public interface EcommFulfillmentService {
      * @param trackingInfo 包含运单号和物流商信息的对象
      */
     void submitTracking(AuthContext authContext, String orderId, TrackingInfo trackingInfo);
+
+    /**
+     * 查询订单当前可用的履约服务商参数。
+     *
+     * @param authContext 授权上下文
+     * @param orderId 平台订单ID
+     * @param orderLineIds 平台订单行ID
+     * @return 当前可用的履约参数列表
+     */
+    default List<FulfillmentProviderOption> getShipmentProviders(AuthContext authContext, String orderId, List<String> orderLineIds) {
+        throw new EcommIntegrationException("当前平台不支持查询履约服务商参数。");
+    }
+
+    /**
+     * 将订单行推进到平台打包状态。
+     *
+     * @param authContext 授权上下文
+     * @param request 打包请求
+     * @return 打包结果
+     */
+    default List<FulfillmentPackageResult> packOrderItems(AuthContext authContext, FulfillmentPackRequest request) {
+        throw new EcommIntegrationException("当前平台不支持打包履约。");
+    }
+
+    /**
+     * 获取包裹面单文档。
+     *
+     * @param authContext 授权上下文
+     * @param packageId 平台包裹ID
+     * @return 面单文档
+     */
+    default FulfillmentDocument getPackageDocument(AuthContext authContext, String packageId) {
+        throw new EcommIntegrationException("当前平台不支持获取面单文档。");
+    }
+
+    /**
+     * 将包裹推进到 Ready To Ship。
+     *
+     * @param authContext 授权上下文
+     * @param packageId 平台包裹ID
+     */
+    default void readyToShip(AuthContext authContext, String packageId) {
+        throw new EcommIntegrationException("当前平台不支持推进 Ready To Ship。");
+    }
 }
