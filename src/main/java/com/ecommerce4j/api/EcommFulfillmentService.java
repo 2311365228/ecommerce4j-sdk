@@ -75,6 +75,20 @@ public interface EcommFulfillmentService {
     }
 
     /**
+     * 获取包裹面单文档
+     * <p>
+     * 部分平台需要同时传订单号和包裹号才能定位面单。默认实现保持向后兼容。
+     *
+     * @param authContext 授权上下文
+     * @param orderId 平台订单ID
+     * @param packageId 平台包裹ID
+     * @return 面单文档
+     */
+    default FulfillmentDocument getPackageDocument(AuthContext authContext, String orderId, String packageId) {
+        return getPackageDocument(authContext, packageId);
+    }
+
+    /**
      * 将包裹推进到 Ready To Ship。
      *
      * @param authContext 授权上下文

@@ -31,6 +31,7 @@
   - [x] **Mercado Libre** (Order, Fulfillment, Logistics, Auth)
   - [x] **Lazada** (Order, Fulfillment, Logistics, Auth)
   - [x] **SHEIN MX Self-operated** (Order, Fulfillment, Logistics, Auth)
+  - [x] **Shopee** (Order, Fulfillment, Logistics, Auth)
 
 ## 🧩 功能模块 (Core Capabilities)
 
@@ -91,6 +92,19 @@ shein:
   auth_url: "https://open.sheincorp.com"
   redirect_uri: "YOUR_CALLBACK_URL"
   api_base_url: "https://openapi.sheincorp.com"
+
+shopee:
+  partner_id: 123456
+  partner_key: "YOUR_SHOPEE_PARTNER_KEY"
+  redirect_uri: "YOUR_CALLBACK_URL"
+  # production / sandbox
+  environment: "production"
+  # API 网关区域：sg 使用 partner.shopeemobile.com；cn/br 分别使用中国、巴西官方域名
+  gateway_region: "sg"
+  shipping_document_poll_attempts: 5
+  shipping_document_poll_interval_ms: 1000
+```
+
 ```
 
 ### 3. 使用 SDK
@@ -167,6 +181,14 @@ private AuthContext getAuthContextForSeller(String sellerId, Platform platform) 
             .accountId("accountId") // Lazada 授权账号ID
             .accountName("accountName") // Lazada 授权账号名
             .build();
+  } else if (Platform.SHOPEE.equals(platform)) {
+    return AuthContext.builder()
+            .platform(Platform.SHOPEE)
+            .accessToken("accessToken") // 从数据库读取
+            .refreshToken("refreshToken") // 从数据库读取
+            .shopId("shopId") // Shopee 店铺级 API 需要 shopId
+            .siteCountry("SG") // 仅保存店铺市场，不用于选择 API 网关
+            .build();
   }
   return null;
 }
@@ -198,6 +220,34 @@ List<FulfillmentPackageResult> packedPackages = fulfillmentService.packOrderItem
 String packageId = packedPackages.get(0).getPackageId();
 FulfillmentDocument awb = fulfillmentService.getPackageDocument(authContext, packageId);
 fulfillmentService.readyToShip(authContext, packageId);
+```
+
+### Shopee 履约示例
+
+Shopee 面单接口需要同时传入订单号 `order_sn` 和包裹号 `package_number`，因此请使用三参重载：
+
+```java
+Platform platform = Platform.SHOPEE;
+EcommFulfillmentService fulfillmentService = platformFactory.getFulfillmentService(platform);
+
+List<FulfillmentProviderOption> providers = fulfillmentService.getShipmentProviders(
+        authContext,
+        "ORDER_SN_001",
+        List.of("PACKAGE_NUMBER_001"));
+
+FulfillmentProviderOption selectedProvider = providers.get(0);
+FulfillmentPackRequest packRequest = FulfillmentPackRequest.builder()
+        .orderId("ORDER_SN_001")
+        .orderLineIds(List.of("PACKAGE_NUMBER_001"))
+        .shippingAllocateType(selectedProvider.getShippingAllocateType())
+        .shipmentProviderCode(selectedProvider.getShipmentProviderCode())
+        .build();
+
+fulfillmentService.packOrderItems(authContext, packRequest);
+FulfillmentDocument awb = fulfillmentService.getPackageDocument(
+        authContext,
+        "ORDER_SN_001",
+        "PACKAGE_NUMBER_001");
 ```
 
 ## � 核心亮点 (Key Features)

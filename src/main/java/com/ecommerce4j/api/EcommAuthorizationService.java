@@ -4,6 +4,8 @@ import com.ecommerce4j.api.dto.AuthContext;
 import com.ecommerce4j.api.dto.UnifiedShopInfo;
 import com.ecommerce4j.api.enums.Platform;
 
+import java.util.Map;
+
 /**
  * 统一授权服务接口
  * <p>
@@ -26,6 +28,20 @@ public interface EcommAuthorizationService {
      * @return 包含访问凭证的授权上下文对象
      */
     AuthContext exchangeCodeForTokens(String code);
+
+    /**
+     * 使用授权回调参数换取访问令牌
+     * <p>
+     * 部分平台（如 Shopee）会在回调中返回额外的 shop_id / main_account_id，
+     * token 换取时需要一起提交。默认实现保持向后兼容。
+     *
+     * @param code 用户授权后从平台重定向URL中获取的授权码
+     * @param callbackParams 平台授权回调中的额外参数
+     * @return 包含访问凭证的授权上下文对象
+     */
+    default AuthContext exchangeCodeForTokens(String code, Map<String, String> callbackParams) {
+        return exchangeCodeForTokens(code);
+    }
 
     /**
      * 使用刷新令牌（refresh token）来获取新的访问令牌。

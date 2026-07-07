@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.List;
 
 /**
  * 授权上下文
@@ -75,7 +76,7 @@ public class AuthContext {
     private String merchantId;
 
     /**
-     * Lazada 站点国家编码，例如 sg / my / ph。
+     * 平台店铺市场/站点编码，例如 Lazada 的 sg / my / ph，或 Shopee 的 SG / MY / BR。
      */
     private String siteCountry;
 
@@ -88,4 +89,14 @@ public class AuthContext {
      * Lazada 授权账号名。
      */
     private String accountName;
+
+    /**
+     * Shopee 主账号授权时返回的店铺ID列表
+     */
+    private List<String> shopIds;
+
+    /**
+     * Shopee 主账号授权时返回的商家ID列表
+     */
+    private List<String> merchantIds;
 }

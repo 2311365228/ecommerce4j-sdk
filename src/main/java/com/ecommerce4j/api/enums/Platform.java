@@ -13,6 +13,8 @@ public enum Platform {
 
     LAZADA("Lazada"),
 
+    SHOPEE("Shopee"),
+
     /**
      * 希音墨西哥自运营
      */
